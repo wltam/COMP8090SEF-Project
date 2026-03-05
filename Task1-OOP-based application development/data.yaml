@@ -1,0 +1,262 @@
+clients:
+  - client_id: C001
+    name: Mitsu Tech Co. Ltd
+    phone: 2333-4444
+    address: Kwun Tong
+
+  - client_id: C002
+    name: Sam Engineering
+    phone: 9123-4567
+    address: Central
+
+  - client_id: C003
+    name: Drip Fun Limited
+    phone: 2888-9999
+    address: Kowloon Bay
+
+  - client_id: C004
+    name: HK Int. Theme Parks
+    phone: 3550-3388
+    address: Lantau Island
+
+  - client_id: C005
+    name: Tech Engineering
+    phone: 2111-0000
+    address: Shatin
+
+  - client_id: C006
+    name: Arus Living (HK)
+    phone: 2555-6666
+    address: Central
+
+jobs:
+  - job_id: J0001
+    description: Furle Signboard Removal
+    contract_total: 38000
+    client_id: C002
+    invoices:
+      - invoice_id: INV-2025-001
+        amount: 10000
+        issue_date: '2025-01-05'
+        payment_date: '2025-01-10'
+        is_paid: true
+      - invoice_id: INV-2025-002
+        amount: 15000
+        issue_date: '2025-02-01'
+        payment_date: '2025-02-15'
+        is_paid: true
+      - invoice_id: INV-2025-003
+        amount: 13000
+        issue_date: '2025-03-01'
+        payment_date: '2025-03-20'
+        is_paid: true
+
+  - job_id: J0002
+    description: Tuen Mun Lamp Pole Calc
+    contract_total: 8300
+    client_id: C005
+    invoices:
+      - invoice_id: INV-2025-004
+        amount: 2000
+        issue_date: '2025-01-15'
+        payment_date: '2025-01-20'
+        is_paid: true
+      - invoice_id: INV-2025-005
+        amount: 3000
+        issue_date: '2025-02-10'
+        payment_date: '2025-02-25'
+        is_paid: true
+      - invoice_id: INV-2025-006
+        amount: 3300
+        issue_date: '2025-03-05'
+        payment_date: null
+        is_paid: false
+
+  - job_id: J0003
+    description: Lai Kong Estate PV Panel
+    contract_total: 28000
+    client_id: C003
+    invoices:
+      - invoice_id: INV-2025-007
+        amount: 8000
+        issue_date: '2025-01-20'
+        payment_date: '2025-01-25'
+        is_paid: true
+      - invoice_id: INV-2025-008
+        amount: 10000
+        issue_date: '2025-03-01'
+        payment_date: '2025-03-15'
+        is_paid: true
+      - invoice_id: INV-2025-009
+        amount: 10000
+        issue_date: '2025-04-01'
+        payment_date: null
+        is_paid: false
+
+  - job_id: J0004
+    description: Aberdeen Solar Panel
+    contract_total: 15000
+    client_id: C002
+    invoices:
+      - invoice_id: INV-2025-010
+        amount: 5000
+        issue_date: '2025-02-01'
+        payment_date: '2025-02-05'
+        is_paid: true
+      - invoice_id: INV-2025-011
+        amount: 5000
+        issue_date: '2025-03-01'
+        payment_date: '2025-03-05'
+        is_paid: true
+      - invoice_id: INV-2025-012
+        amount: 5000
+        issue_date: '2025-04-01'
+        payment_date: '2025-04-05'
+        is_paid: true
+
+  - job_id: J0005
+    description: 6m Lighting Arrestor Pole
+    contract_total: 7885
+    client_id: C005
+    invoices:
+      - invoice_id: INV-2025-013
+        amount: 2000
+        issue_date: '2025-01-10'
+        payment_date: '2025-01-12'
+        is_paid: true
+      - invoice_id: INV-2025-014
+        amount: 3000
+        issue_date: '2025-02-10'
+        payment_date: '2025-02-12'
+        is_paid: true
+      - invoice_id: INV-2025-015
+        amount: 2885
+        issue_date: '2025-03-10'
+        payment_date: '2025-03-12'
+        is_paid: true
+
+  - job_id: J0006
+    description: Disney Mickey House
+    contract_total: 98000
+    client_id: C006
+    invoices:
+      - invoice_id: INV-2025-016
+        amount: 30000
+        issue_date: '2025-02-15'
+        payment_date: '2025-02-28'
+        is_paid: true
+      - invoice_id: INV-2025-017
+        amount: 30000
+        issue_date: '2025-04-15'
+        payment_date: '2025-04-30'
+        is_paid: true
+      - invoice_id: INV-2025-018
+        amount: 38000
+        issue_date: '2025-06-01'
+        payment_date: null
+        is_paid: false
+
+  - job_id: J0007
+    description: Kai Tak Sports Park Endorsement
+    contract_total: 14500
+    client_id: C002
+    invoices:
+      - invoice_id: INV-2025-019
+        amount: 4500
+        issue_date: '2025-01-05'
+        payment_date: '2025-01-20'
+        is_paid: true
+      - invoice_id: INV-2025-020
+        amount: 5000
+        issue_date: '2025-03-05'
+        payment_date: '2025-03-20'
+        is_paid: true
+
+  - job_id: J0008
+    description: Ear Up Music Festival 2023
+    contract_total: 17000
+    client_id: C001
+    invoices:
+      - invoice_id: INV-2025-021
+        amount: 17000
+        issue_date: '2025-01-10'
+        payment_date: '2025-01-20'
+        is_paid: true
+
+  - job_id: J0009
+    description: HKE PV Panel Endorsement
+    contract_total: 15000
+    client_id: C002
+    invoices:
+      - invoice_id: INV-2025-022
+        amount: 15000
+        issue_date: '2025-01-15'
+        payment_date: '2025-01-30'
+        is_paid: true
+
+  - job_id: J0010
+    description: CMAB Exhibition Endorsement
+    contract_total: 2000
+    client_id: C002
+    invoices:
+      - invoice_id: INV-2025-023
+        amount: 2000
+        issue_date: '2025-02-01'
+        payment_date: '2025-02-10'
+        is_paid: true
+
+  - job_id: J0011
+    description: Mira Place Signboard Consult
+    contract_total: 38000
+    client_id: C002
+    invoices:
+      - invoice_id: INV-2025-024
+        amount: 38000
+        issue_date: '2025-02-05'
+        payment_date: '2025-02-25'
+        is_paid: true
+
+  - job_id: J0012
+    description: North Point GO Exhibition
+    contract_total: 2000
+    client_id: C002
+    invoices:
+      - invoice_id: INV-2025-025
+        amount: 2000
+        issue_date: '2025-06-02'
+        payment_date: null
+        is_paid: false
+
+  - job_id: J0013
+    description: Canny Ind. Roof PV Panel
+    contract_total: 15000
+    client_id: C002
+    invoices:
+      - invoice_id: INV-2025-026
+        amount: 7500
+        issue_date: '2025-06-05'
+        payment_date: null
+        is_paid: false
+
+  - job_id: J0014
+    description: Zero Carbon Park Festival
+    contract_total: 9000
+    client_id: C003
+    invoices:
+      - invoice_id: INV-2025-027
+        amount: 4500
+        issue_date: '2025-06-10'
+        payment_date: null
+        is_paid: false
+
+  - job_id: J0015
+    description: Harbour Grand Metal Gate
+    contract_total: 2600
+    client_id: C002
+    invoices: []
+
+  - job_id: J0016
+    description: Pumpkin Mickey Halloween
+    contract_total: 11000
+    client_id: C004
+    invoices: []
