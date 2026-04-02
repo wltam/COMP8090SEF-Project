@@ -2,31 +2,80 @@
 
 # Content
 
-## Section 1 - Data Structure - Hash
-### Purpose for Hash Table
-A hash table is mainly used to store data in a way that lets you find, add, or remove items very quickly using a unique key. Instead of searching through a list one-by-one, it uses a hash function to convert the key into an index, which makes lookups, insertions, and deletions typically run in about O(1) average time. 
+## Section 1 - Data Structure - Trie
 
-Because of this, hash tables are widely used for tasks like mapping IDs to records, quickly checking whether something exists (like detecting duplicates), counting frequencies (such as word counts), and implementing caches to reuse previously computed results efficiently.
+### Introduction
+A **Trie** is a tree-based data structure built specifically for string storage and retrieval. It gets its name from the word "retrieval", first introduced by Edward Fredkin in 1960. Rather than storing complete strings at each node, a Trie breaks every word down character by character, where each node represents a single letter and the path from the root to any node spells out a prefix or a complete word.
 
-### Common use case
+### Structure
+- **TrieNode**: Each node contains:
+  - `children`: A dictionary mapping characters to child TrieNodes
+  - `is_end`: A boolean flag indicating if the node marks the end of a complete word
+- **Trie**: The main structure with a root node and operations
 
-1. **Storing user passwords**
+### Features
+- **Insert**: Add words to the trie
+- **Search**: Check if a word exists in the trie
+- **Prefix Search**: Check if any word starts with a given prefix
+- **Delete**: Remove a word from the trie [Only remove the flag of end of word]
+- **Visualize**: Generate a graphical representation of the trie using Graphviz [only available if graphviz is installed]
 
-For example, if Peter has the login password **12345** on website A, the password stored in the backend database is usually **hashed**, rather than saving the plain text **12345** directly. Therefore, even if a hacker breaks into the database, they still cannot infer what the original password was, which helps ensure data security. 
+### How to Use
 
-2. **File verification**
+#### Prerequisites
+```
+pip install graphviz
+```
+Note: You may need to install Graphviz system package from https://graphviz.org/download/
 
-If we open the terminal and type `md5` filename, we will see that it generates a hash value. This can be used to verify whether two files are identical.
-### Characteristic
+#### Basic Usage
 
-1. **Fixed-length output**: No matter how long the original input is, the value produced by a hash algorithm is always a fixed length.
-2. **One-way (irreversible)**: Data that has been hashed cannot be reversed to recover the original input.
-3. **Avalanche effect**: Even if two inputs differ by only one word or one character, the resulting hash values will be vastly different.
+```python
+from trie import Trie #import
 
-## Section 2 - Algorithm - A* Algorithm
+# Create a new Trie
+trie = Trie()
 
-### Purpose for A* Algorithm
-A* (A-star) is a pathfinding algorithm used to find the shortest or most efficient route between two points. 
+# Insert words
+trie.insert("metro")
+trie.insert("metropolitan")
 
-### Common use case
-It is widely used in applications such as GPS navigation, game AI, and robotics because it is both fast and accurate. Unlike simpler search algorithms that blindly explore all directions, A* uses a heuristic function to estimate the distance to the goal, allowing it to prioritize more promising paths and avoid wasting time on dead ends. This makes it one of the most popular and practical algorithms in computer science whenever an optimal path needs to be found efficiently.
+# Search for words
+print(trie.search("metro"))      # True
+print(trie.search("metrop"))     # False
+
+# Check prefix
+print(trie.starts_with("metr"))  # True
+print(trie.starts_with("xyz"))   # False
+
+# Delete a word
+trie.delete("metro")
+print(trie.search("metro"))      # False
+
+# Visualize the trie
+trie.visualize()  # Saves as trie.png
+```
+
+### Test Cases
+
+#### Test 1: Basic Operations
+File: `trie_test1.py`
+
+
+#### Test 2: Visualization
+File: `trie_test2.py`
+
+### Visualization Output
+The `visualize()` method generates a PNG file showing:
+- **Label**: Labeled as "root" or a single character
+- **End-of-word nodes**: Double circle with light blue fill
+- **Edges**: Show the path from root to each character
+
+Example visualization shows the shared prefixes and branching structure of the trie.
+
+![Trie Visualization](https://github.com/wltam/COMP8090SEF-Project/raw/main/Task2-Self_Study/trie.png)
+
+
+## Section 2 - Algorithm - Levenshtein Distance
+
+
