@@ -7,5 +7,5 @@ version #draft_1
 The **Service Record Management System (SRMS)** is designed to assist small companies in managing clients and invoices by replacing manual record-keeping methods.
 
 ### Task 2 - Self-study on a new data structure AND a new algorithm which are NOT covered in the course
-- Section 1 - Data Structure - Hash
-- Section 2 - Algorithm - A* Algorithm
+- Section 1 - Data Structure - Trie
+- Section 2 - Algorithm - Levenshtein Distance

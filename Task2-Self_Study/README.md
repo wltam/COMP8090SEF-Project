@@ -78,4 +78,41 @@ Example visualization shows the shared prefixes and branching structure of the t
 
 ## Section 2 - Algorithm - Levenshtein Distance
 
+### Introduction
+**Levenshtein Distance** measures how different two strings are. Specifically, it counts the minimum number of single-character edits required to transform one string into another, where an "edit" means one of three operations: insertion, deletion, or substitution. The concept was introduced by Soviet mathematician Vladimir Levenshtein in 1965, originally developed for error correction in binary codes.
+
+### Allowed Operations
+The algorithm considers three types of edits:
+1. **Insertion**: Add a character
+2. **Deletion**: Remove a character
+3. **Substitution**: Replace one character with another
+
+Each operation has a cost of 1. The Levenshtein Distance is the minimum total cost to transform the source string into the target string.
+
+### Features
+- **Standard Implementation**: Full DP matrix for educational understanding
+- **Visualization**: Prints the complete DP matrix for tracing the algorithm
+
+### How to Use
+
+#### Basic Usage
+
+```python
+from LevenshteinDistance import levenshtein_distance, visualize_dp_matrix
+
+# Calculate distance between two strings
+distance = LevenshteinDistance.levenshtein_distance("metro", "metric")
+print(f"Distance: {distance}")  # Output: 2
+
+# Visualize the DP matrix
+LevenshteinDistance.visualize_dp_matrix("metro", "metric")
+```
+
+### Test Cases
+
+File: `LevenshteinDistance_demo.py`
+
+- Calculate distances between various string pairs
+
+
 
