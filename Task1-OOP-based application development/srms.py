@@ -1,469 +1,810 @@
 import yaml
 import os
 from datetime import date
+import tkinter as tk
+from tkinter import ttk, messagebox, simpledialog
 
 # ==========================================
 # Config
 # ==========================================
 
-DATA_FILE = "data.yaml"
+BASE_DIR  = os.path.dirname(os.path.abspath(__file__))
+DATA_FILE = os.path.join(BASE_DIR, "data.yaml")
 
 # ==========================================
 # YAML I/O
 # ==========================================
 
+# function to load / save data from/to YAML file
 def load_data():
     with open(DATA_FILE, "r", encoding="utf-8") as f:
-        data = yaml.safe_load(f)
-        return data if data else {"clients": [], "jobs": []}
+        data = yaml.safe_load(f) # data is dict with keys: clients, jobs, invoices
 
-def save_data(clients, jobs):
+    #convert client to dict to object
+    for c in data.get("clients", []):
+        all_clients.append(Client(c["client_id"], c["name"], c["phone"], c["address"]))
+
+    #convert job to dict to object
+    for j in data.get("jobs", []):
+        all_jobs.append(Job(j["job_id"], j["description"], j["contract_total"], j["client_id"]))
+
+    #convert invoice to dict to object
+    for inv in data.get("invoices", []):
+        issue_date   = date.fromisoformat(str(inv["issue_date"])) #convert string to date 
+        payment_date = date.fromisoformat(str(inv["payment_date"])) if inv.get("payment_date") else None
+        all_invoices.append(Invoice(inv["invoice_id"], float(inv["amount"]), inv["job_id"], 
+                                    issue_date, payment_date, inv.get("notes", "")))
+    return True
+
+def save_data(clients, jobs, invoices):
     data = {
-        "clients": [client_to_dict(c) for c in clients],
-        "jobs":    [job_to_dict(j)    for j in jobs],
+        "clients":  [{"client_id": cli.client_id, 
+                      "name": cli.name, 
+                      "phone": cli.phone, 
+                      "address": cli.address} for cli in clients],  #list for client dict
+        "jobs":     [{"job_id": job.job_id, 
+                      "description": job.description, 
+                      "contract_total": job.contract_total, 
+                      "client_id": job.client_id} for job in jobs], #list for job dict
+        "invoices": [{"invoice_id": inv.invoice_id,             
+                        "job_id": inv.job_id,
+                        "amount": inv.amount,
+                        "issue_date": inv.issue_date.isoformat(), #change to string
+                        "payment_date": inv.payment_date.isoformat() if inv.payment_date else None,
+                        "is_paid": inv.is_paid,
+                        "notes": inv.notes,} for inv in invoices], #list for invoice dict
     }
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         yaml.dump(data, f, allow_unicode=True, default_flow_style=False, sort_keys=False)
 
-# ==========================================
-# Serialization
-# ==========================================
-
-def client_to_dict(c):
-    return {
-        "client_id": c.client_id,
-        "name":      c.name,
-        "phone":     c.phone,
-        "address":   c.address,
-    }
-
-def invoice_to_dict(inv):
-    return {
-        "invoice_id":   inv.invoice_id,
-        "amount":       inv.amount,
-        "issue_date":   inv.issue_date.isoformat(),
-        "payment_date": inv.payment_date.isoformat() if inv.payment_date else None,
-        "is_paid":      inv.is_paid,
-    }
-
-def job_to_dict(j):
-    return {
-        "job_id":         j.job_id,
-        "description":    j.description,
-        "contract_total": j.contract_total,
-        "client_id":      j.client.client_id,
-        "invoices":       [invoice_to_dict(inv) for inv in j.invoice_list],
-    }
 
 # ==========================================
-# Deserialization
+# Global Variables - Save all objects in memory
 # ==========================================
 
-def dict_to_client(d):
-    return Client(d["client_id"], str(d["name"]), str(d["phone"]), d["address"])
-
-def dict_to_invoice(d):
-    issue_date   = date.fromisoformat(str(d["issue_date"]))
-    payment_date = date.fromisoformat(str(d["payment_date"])) if d.get("payment_date") else None
-    return Invoice(d["invoice_id"], float(d["amount"]), issue_date, payment_date)
-
-def dict_to_job(d, clients):
-    client = next((c for c in clients if c.client_id == d["client_id"]), None)
-    job = Job(d["job_id"], d["description"], float(d["contract_total"]), client)
-    for inv_dict in d.get("invoices", []):
-        job.add_invoice(dict_to_invoice(inv_dict))
-    return job
+all_clients : list["Client"] = []
+all_jobs : list["Job"] = []
+all_invoices : list["Invoice"] = []
 
 # ==========================================
+# For Classes
+# ==========================================
+
 # Class: Client
-# ==========================================
-
 class Client:
     def __init__(self, client_id, name, phone, address):
-        self.client_id = client_id
-        self.name      = name
-        self.phone     = phone
-        self.address   = address
+        self.client_id: str = client_id #client id [Cxxx where xxx is 5-digit number]
+        self.name : str = name
+        self.phone : str = phone
+        self.address : str = address
 
-    def __str__(self):
-        return (f"ID: {self.client_id:<5} | Name: {self.name:<20} | "
-                f"Phone: {self.phone:<12} | Addr: {self.address}")
+    @staticmethod
+    def find_client(cid):
+        '''Find client object by client id'''
+        return next((c for c in all_clients if c.client_id.upper() == cid.upper()), None)
 
-# ==========================================
+    @staticmethod
+    def generate_client_id():
+        '''generate new client id [Cxxx where xxx is 5-digit number]'''
+        num = 0
+        for c in all_clients:
+            num = max(num, int(c.client_id[-5:])) # remove 'C' and convert to int
+        return f"C{num + 1:05d}"
+
 # Class: Invoice
-# ==========================================
-
 class Invoice:
-    def __init__(self, invoice_id, amount, issue_date=None, payment_date=None):
-        self.invoice_id   = invoice_id
-        self.amount       = amount
-        self.issue_date   = issue_date if issue_date else date.today()
-        self.payment_date = payment_date
-        self.is_paid      = payment_date is not None
+    
+    def __init__(self, invoice_id, amount, job_id, issue_date=None, payment_date=None, notes=""):
+        self.invoice_id : str = invoice_id #invoice id [INV-yyyy-xxxxx where yyyy is year and xxxxx is 5-digit number]
+        self.amount : float = amount
+        self.job_id : str = job_id
+        self.issue_date : date = issue_date if issue_date else date.today()
+        self.payment_date : date = payment_date
+        self.is_paid : bool = payment_date is not None
+        self.notes : str = notes
 
-    def mark_as_paid(self):
+    @staticmethod
+    def find_invoice(inv_id) -> "Invoice":
+        return next((i for i in all_invoices if i.invoice_id.upper() == inv_id.upper()), None)
+
+    @staticmethod
+    def generate_invoice_id() -> str:
+        '''generate new invoice id'''
+        current_year = date.today().year
+        num = 0
+        for inv in all_invoices:
+            num = max(num, int(inv.invoice_id[-5:])) # take last 5 characters and convert to int
+        return f"INV-{current_year}-{num + 1:05d}"
+    
+    @property
+    def job(self) -> "Job":
+        return Job.find_job(self.job_id)
+
+    @property
+    def client(self) -> "Client":
+        return Client.find_client(self.job.client_id)
+
+    @property
+    def status_label(self) -> str:
+        '''for display the status of payment'''
+        if self.is_paid:
+            return f"PAID on {self.payment_date}"
+        return "UNPAID"
+
+    def mark_as_paid(self, payment_date=None):
+        '''mark the invoice is paid and set the payment date'''
         self.is_paid      = True
-        self.payment_date = date.today()
+        self.payment_date = payment_date if payment_date else date.today()
 
-    def __str__(self):
-        status = f"[PAID: {self.payment_date}]" if self.is_paid else "[UNPAID]"
-        return (f"   -> Inv#: {self.invoice_id:<16} | "
-                f"Amt: ${self.amount:>12,.2f} | "
-                f"Issued: {self.issue_date} | {status}")
-
-# ==========================================
 # Class: Job
-# ==========================================
-
 class Job:
-    def __init__(self, job_id, description, contract_total, client):
-        self.job_id         = job_id
-        self.description    = description
-        self.contract_total = contract_total
-        self.client         = client
-        self.invoice_list   = []
+    def __init__(self, job_id, description, contract_total, client_id):
+        self.job_id : str = job_id #job id [Jxxx where xxx is 3-digit number]
+        self.description : str = description
+        self.contract_total : float = contract_total
+        self.client_id : str = client_id
 
-    def add_invoice(self, inv):
-        self.invoice_list.append(inv)
+    @staticmethod
+    def find_job(jid) -> "Job":
+        '''find job object by job id'''
+        return next((j for j in all_jobs if j.job_id.upper() == jid.upper()), None)
 
-    def get_paid_total(self):
-        return sum(inv.amount for inv in self.invoice_list if inv.is_paid)
+    @staticmethod
+    def generate_job_id() -> str:
+        '''generate new job id'''
+        num = 0
+        for j in all_jobs:
+            num = max(num, int(j.job_id[-5:])) # remove 'J' and convert to int
+        return f"J{num + 1:05d}"
+    
+    @property
+    def client(self) -> Client:
+        return Client.find_client(self.client_id)
 
-    def get_billed_total(self):
-        return sum(inv.amount for inv in self.invoice_list)
+    def get_invoices(self) -> list[Invoice]:
+        '''get all invoices related to this job'''
+        return [inv for inv in all_invoices if inv.job_id == self.job_id]
 
-    def get_outstanding_balance(self):
+    def get_paid_total(self) -> float:
+        '''return the total amount of paid invoices'''
+        return sum(inv.amount for inv in self.get_invoices() if inv.is_paid)
+
+    def get_billed_total(self) -> float:
+        '''return the total amount of all invoices'''
+        return sum(inv.amount for inv in self.get_invoices())
+
+    def get_outstanding_balance(self) -> float:
+        '''return the outstanding balance (i.e. contract total - paid total)'''
         return self.contract_total - self.get_paid_total()
 
-    def print_job_details(self):
-        print("=" * 49)
-        print(f"JOB ID: {self.job_id}")
-        print(f"Client: {self.client.name} (ID: {self.client.client_id})")
-        print(f"Desc:   {self.description}")
-        print("-" * 49)
-        print(f"Contract Total:  ${self.contract_total:>12,.2f}")
-        print(f"Total Billed:    ${self.get_billed_total():>12,.2f}")
-        print(f"Total Paid:      ${self.get_paid_total():>12,.2f}")
-        print(f"OUTSTANDING FEE: ${self.get_outstanding_balance():>12,.2f}")
-        print("-" * 49)
-        print("Invoice History:")
-        if not self.invoice_list:
-            print("   (No invoices issued yet)")
-        else:
-            for inv in self.invoice_list:
-                print(inv)
-        print("=" * 49 + "\n")
-
 # ==========================================
-# Global State
+# GUI
 # ==========================================
 
-all_clients = []
-all_jobs    = []
+#: General Form Dialog
+class FormDialog(tk.Toplevel):
+    """
+    Genearic form dialog
+    """
+    def __init__(self, parent, title, fields): #Enter for fields with a list of (label, default_value, disabled:bool)
+        super().__init__(parent)
+        self.title(title)
+        self.resizable(False, False)
+        self.grab_set()  
+        self.result = None
 
-# ==========================================
-# Utilities
-# ==========================================
+        #create entry form based on fields
+        self.entries = []
+        for i, (label, default, disabled) in enumerate(fields):
+            tk.Label(self, text=label, anchor="w").grid(row=i, column=0, padx=12, pady=6, sticky="w")
+            state = "disabled" if disabled else "normal"
+            e = tk.Entry(self, width=36)
+            e.grid(row=i, column=1, padx=12, pady=6)
+            if default is not None:
+                e.insert(0, str(default))
+            e.config(state=state)
+            self.entries.append(e)
 
-def find_client(cid):
-    return next((c for c in all_clients if c.client_id.upper() == cid.upper()), None)
+        btn_frame = tk.Frame(self) #botton frame at the bottom of the dialog
 
-def find_job(jid):
-    return next((j for j in all_jobs if j.job_id.upper() == jid.upper()), None)
+        # OK and Canel buttons
+        btn_frame.grid(row=len(fields), column=0, columnspan=2, pady=10)
+        tk.Button(btn_frame, text="OK",     width=10, command=self._ok).pack(side="left",  padx=6)
+        tk.Button(btn_frame, text="Cancel", width=10, command=self._cancel).pack(side="left", padx=6)
 
-def press_enter():
-    input("\nPress Enter to continue...")
 
-def generate_invoice_id():
-    current_year = date.today().year
-    count = sum(
-        1 for j in all_jobs
-          for inv in j.invoice_list
-          if inv.issue_date.year == current_year
-    )
-    return f"INV-{current_year}-{count + 1:03d}"
+        self.bind("<Return>", lambda e: self._ok())
+        self.bind("<Escape>", lambda e: self._cancel())
+        self.wait_window()
 
-# ==========================================
-# CLIENT MENU
-# ==========================================
+    def _ok(self):
+        self.result = [e.get().strip() for e in self.entries]
+        self.destroy()
 
-def create_new_client():
-    print("\n--- Create New Client ---")
-    new_id = f"C{len(all_clients) + 1:03d}"
-    print(f"Auto-Generated ID: {new_id}")
-    name  = input("Enter Name: ").strip()
-    phone = input("Enter Phone: ").strip()
-    addr  = input("Enter Address: ").strip()
-    all_clients.append(Client(new_id, name, phone, addr))
-    save_data(all_clients, all_jobs)
-    print("Success: Client added.")
+    def _cancel(self):
+        self.destroy()
 
-def edit_client_detail():
-    cid = input("\nEnter Client ID to edit (e.g. C001): ").strip()
-    c   = find_client(cid)
-    if not c:
-        print("Error: Client not found.")
-        return
-    print(f"Current Info: {c}")
-    name = input("Enter New Name (Enter to skip): ").strip()
-    if name:
-        c.name = name
-        print("Name updated.")
-    phone = input("Enter New Phone (Enter to skip): ").strip()
-    if phone:
-        c.phone = phone
-        print("Phone updated.")
-    addr = input("Enter New Address (Enter to skip): ").strip()
-    if addr:
-        c.address = addr
-        print("Address updated.")
-    save_data(all_clients, all_jobs)
-    print("Success: Client updated.")
+# Client Tab
+class ClientTab(tk.Frame):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self._build_toolbar()
+        self._build_tree()
+        self.refresh()
 
-def list_all_clients():
-    print("\n--- Client List ---")
-    if not all_clients:
-        print("No clients found.")
-    else:
+    def _build_toolbar(self):
+        '''the top toolbar with buttons'''
+        bar = tk.Frame(self)
+        bar.pack(fill="x", padx=8, pady=6)
+        tk.Button(bar, text="New Client",  width=14, command=self.on_new).pack(side="left", padx=4)
+        tk.Button(bar, text="Edit Client", width=14, command=self.on_edit).pack(side="left", padx=4)
+
+    def _build_tree(self):
+        '''the treeview to display client list'''
+        cols = ("client_id", "name", "phone", "address")
+        frame = tk.Frame(self)
+        frame.pack(fill="both", expand=True, padx=8, pady=4)
+
+        self.tree = ttk.Treeview(frame, columns=cols, show="headings", selectmode="browse")
+
+        #set the heading and column 
+        for col, heading, width in [("client_id", "ID", 80), ("name", "Name", 180),
+                                    ("phone", "Phone", 120), ("address", "Address", 300),]:
+            self.tree.heading(col, text=heading)
+            self.tree.column(col,  width=width, anchor="w")
+
+        # vertical scrollbar
+        vsb = ttk.Scrollbar(frame, orient="vertical", command=self.tree.yview)
+        self.tree.configure(yscrollcommand=vsb.set)
+
+        self.tree.pack(side="left", fill="both", expand=True)
+        vsb.pack(side="right", fill="y")
+
+    def refresh(self):
+        
+        self.tree.delete(*self.tree.get_children()) #del existing rows
+        
+        #reload all clients value to the tree
         for c in all_clients:
-            print(c)
+            self.tree.insert("", "end", iid=c.client_id, values=(c.client_id, c.name, c.phone, c.address))
 
-# ==========================================
-# JOB MENU
-# ==========================================
+    def _selected_client(self) -> Client | None:
+        sel = self.tree.selection() #returns tuple with selected item idd 
+        if not sel:
+            messagebox.showwarning("No Selection", "Please select a client first.")
+            return None
+        return Client.find_client(sel[0])
 
-def create_new_job():
-    print("\n--- Create New Job ---")
-    cid    = input("Enter Existing Client ID (e.g. C001): ").strip()
-    client = find_client(cid)
-    if not client:
-        print("Error: Client not found.")
-        return
-    new_job_id = f"J{len(all_jobs) + 1:04d}"
-    desc       = input("Enter Job Description: ").strip()
-    try:
-        price = float(input("Enter Total Contract Price: ").strip())
-    except ValueError:
-        print("Error: Invalid number.")
-        return
-    all_jobs.append(Job(new_job_id, desc, price, client))
-    save_data(all_clients, all_jobs)
-    print(f"Success: Job created with ID: {new_job_id}")
+    def on_new(self):
+        '''for creating a new client'''
+        new_id = Client.generate_client_id()
+        formD = FormDialog(self, "New Client", [("ID (auto)", new_id, True),
+                                              ("Name", "", False),
+                                              ("Phone", "", False),
+                                              ("Address", "", False)])
+        if formD.result:
+            _, name, phone, addr = formD.result
+            if not name:
+                messagebox.showerror("Error", "Name is required.")
+                return
+            all_clients.append(Client(new_id, name, phone, addr))
+            
+            #always save & refresh
+            save_data(all_clients, all_jobs, all_invoices)
+            self.refresh()
 
-def edit_job_detail():
-    jid = input("\nEnter Job ID to edit: ").strip()
-    job = find_job(jid)
-    if not job:
-        print("Error: Job not found.")
-        return
-    desc = input("Enter New Description (Enter to skip): ").strip()
-    if desc:
-        job.description = desc
-        print("Description updated.")
-    price_str = input("Enter New Contract Price (Enter to skip): ").strip()
-    if price_str:
+    def on_edit(self):
+        '''for editing the selected client'''
+        c = self._selected_client()
+        if not c:
+            return
+        formD = FormDialog(self, "Edit Client", [("ID (fixed)", c.client_id, True),
+                                               ("Name", c.name, False),
+                                               ("Phone", c.phone, False),
+                                               ("Address", c.address, False)])
+        if formD.result:
+            _, name, phone, addr = formD.result
+            if name: c.name = name
+            if phone: c.phone = phone
+            if addr: c.address = addr
+            
+            #always save & refresh
+            save_data(all_clients, all_jobs, all_invoices)
+            self.refresh()
+
+# Job Tab
+class JobTab(tk.Frame):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self._build_toolbar()
+        self._build_tree()
+        self.refresh()
+
+    def _build_toolbar(self):
+        ''''the top toolbar with buttons'''
+        bar = tk.Frame(self)
+        bar.pack(fill="x", padx=8, pady=6)
+        tk.Button(bar, text="New Job",  width=14, command=self.on_new).pack(side="left", padx=4)
+        tk.Button(bar, text="Edit Job", width=14, command=self.on_edit).pack(side="left", padx=4)
+
+    def _build_tree(self):
+        ''''the treeview to display job list'''
+        cols = ("job_id", "client", "description", "contract", "billed", "paid", "outstanding")
+        frame = tk.Frame(self)
+        frame.pack(fill="both", expand=True, padx=8, pady=4)
+
+        self.tree = ttk.Treeview(frame, columns=cols, show="headings", selectmode="browse")
+
+        # set heading and column 
+        for col, heading, width, anchor in [("job_id", "Job ID", 90, "w"), 
+                                            ("client", "Client", 160, "w"),
+                                            ("description", "Description", 200, "w"), 
+                                            ("contract", "Contract", 100, "e"),
+                                            ("billed", "Billed", 100, "e"),             
+                                            ("paid", "Paid", 100, "e"),
+                                            ("outstanding", "Outstanding", 100, "e")]:
+            self.tree.heading(col, text=heading)
+            self.tree.column(col,  width=width, anchor=anchor)
+
+        vsb = ttk.Scrollbar(frame, orient="vertical", command=self.tree.yview)
+        self.tree.configure(yscrollcommand=vsb.set)
+
+        self.tree.pack(side="left", fill="both", expand=True)
+        vsb.pack(side="right", fill="y")
+
+    def refresh(self):
+
+        self.tree.delete(*self.tree.get_children())
+
+        for j in all_jobs:
+            client = j.client #get the client object
+            cname  = client.name if client else "N/A"
+            self.tree.insert("", "end", iid=j.job_id, values=(
+                j.job_id,
+                cname,
+                j.description,
+                f"${j.contract_total:,.2f}",
+                f"${j.get_billed_total():,.2f}",
+                f"${j.get_paid_total():,.2f}",
+                f"${j.get_outstanding_balance():,.2f}"))
+
+    def _selected_job(self):
+        sel = self.tree.selection()
+        if not sel:
+            messagebox.showwarning("No Selection", "Please select a job first.")
+            return None
+        return Job.find_job(sel[0])
+
+    def on_new(self):
+        '''for creating a new job'''
+        if not all_clients:
+            messagebox.showerror("Error", "No clients found. Please create a client first.")
+            return
+
+        new_job_id = Job.generate_job_id()
+        
+        formD = FormDialog(self, "New Job", [
+            ("Job ID (auto)", new_job_id, True),(f"Client ID", "", False),
+            ("Description","", False), ("Contract Total", "", False)])
+        
+        if formD.result:
+            _, cid, desc, price_str = formD.result
+
+            #check input error
+            if not Client.find_client(cid.upper()):
+                messagebox.showerror("Error", f"Client '{cid.upper()}' not found.")
+                return
+            
+            #check input error for contract total
+            try:
+                price = float(price_str)
+            except ValueError:
+                messagebox.showerror("Error", "Invalid contract total.")
+                return
+            
+            all_jobs.append(Job(new_job_id, desc, price, cid.upper()))
+            
+            
+            #always save & refresh
+            save_data(all_clients, all_jobs, all_invoices)
+            self.refresh()
+
+    def on_edit(self):
+        '''for editing the selected job'''
+        j = self._selected_job()
+        if not j:
+            return
+        formD = FormDialog(self, "Edit Job", [
+            ("Job ID (fixed)", j.job_id, True),(f"Client ID", j.client_id, False),
+            ("Description", j.description, False), ("Contract Total", j.contract_total, False) ])
+        
+        if formD.result:
+            _, cid, desc, price_str = formD.result
+            
+            #check input error
+            if not Client.find_client(cid.upper()):
+                messagebox.showerror("Error", f"Client '{cid.upper()}' not found.")
+                return
+            
+            j.client_id = cid.upper()
+            j.description = desc
+
+            #check input error for contract total
+            if price_str:
+                try:
+                    j.contract_total = float(price_str)
+                except ValueError:
+                    messagebox.showerror("Error", "Invalid contract total.")
+                    return
+            
+            #always save & refresh
+            save_data(all_clients, all_jobs, all_invoices)
+            self.refresh()
+
+# GUI: Invoice Tab
+class InvoiceTab(tk.Frame):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self._build_toolbar()
+        self._build_tree()
+        self.refresh()
+
+    def _build_toolbar(self):
+        '''top toolbar with buttons'''
+        bar = tk.Frame(self)
+        bar.pack(fill="x", padx=8, pady=6)
+        tk.Button(bar, text="New Invoice", width=14, command=self.on_new).pack(side="left", padx=4)
+        tk.Button(bar, text="Edit Invoice", width=14, command=self.on_edit).pack(side="left", padx=4)
+        tk.Button(bar, text="Record Payment", width=14, command=self.on_pay).pack(side="left", padx=4)
+
+    def _build_tree(self):
+        '''treeview to display invoice list'''
+        cols = ("invoice_id", "job_id", "client", "amount", "issued", "status", "notes")
+        frame = tk.Frame(self)
+        frame.pack(fill="both", expand=True, padx=8, pady=4)
+
+        self.tree = ttk.Treeview(frame, columns=cols, show="headings", selectmode="browse")
+        # construct the columns
+        for col, heading, width, anchor in [("invoice_id", "Invoice ID",  150, "w"),
+                                            ("job_id", "Job ID", 90, "w"),
+                                            ("client", "Client", 160, "w"), 
+                                            ("amount", "Amount", 100, "e"),
+                                            ("issued", "Issued", 100, "w"),
+                                            ("status", "Status", 160, "w"),
+                                            ("notes", "Notes", 200, "w")]:
+            self.tree.heading(col, text=heading)
+            self.tree.column(col,  width=width, anchor=anchor)
+
+        #deal with vertical scrollbar
+        vsb = ttk.Scrollbar(frame, orient="vertical", command=self.tree.yview)
+        self.tree.configure(yscrollcommand=vsb.set)
+
+        self.tree.pack(side="left", fill="both", expand=True)
+        vsb.pack(side="right", fill="y")
+
+        # red tag for unpiad invoices
+        self.tree.tag_configure("UNPAID", foreground="red")
+
+    def refresh(self):
+        '''load all invoices to the tree'''
+        self.tree.delete(*self.tree.get_children())
+
+        for inv in all_invoices:
+            client = inv.client
+            cname  = client.name if client else "N/A"
+            tag    = ("UNPAID",) if "UNPAID" in inv.status_label else ()
+            self.tree.insert("", "end", iid=inv.invoice_id, 
+                             values=(inv.invoice_id,
+                                     inv.job_id,
+                                     cname,
+                                     f"${inv.amount:,.2f}",
+                                     str(inv.issue_date),
+                                     inv.status_label,
+                                     inv.notes or ""), 
+                            tags=tag)
+
+    def _selected_invoice(self):
+        sel = self.tree.selection()
+        if not sel:
+            messagebox.showwarning("No Selection", "Please select an invoice first.")
+            return None
+        return Invoice.find_invoice(sel[0])
+
+    #create new invoice for a job
+    def on_new(self):
+        if not all_jobs:
+            messagebox.showerror("Error", "No jobs found. Please create a job first.")
+            return
+        invoice_id = Invoice.generate_invoice_id()
+        formD = FormDialog(self, "New Invoice", [("Invoice ID (auto)", invoice_id, True),
+                                                (f"Job ID (J000xx)", "",False),
+                                                ("Amount", "", False),
+                                                ("Issue Date (YYYY-MM-DD)", str(date.today()), False),
+                                                ("Notes (optional)", "", False)]
+                            )
+        if not formD.result:
+            return
+        
+        _, jid, amt_str, date_str, notes = formD.result
+
+        job = Job.find_job(jid)
+        if not job:
+            messagebox.showerror("Error", f"Job '{jid}' not found.")
+            return
         try:
-            job.contract_total = float(price_str)
-            print("Contract Price updated.")
+            amount = float(amt_str)
         except ValueError:
-            print("Invalid number.")
-    save_data(all_clients, all_jobs)
-    print("Success: Job updated.")
-
-def list_specific_job():
-    jid = input("\nEnter Job ID to view details: ").strip()
-    job = find_job(jid)
-    if job:
-        job.print_job_details()
-    else:
-        print("Error: Job not found.")
-
-def list_all_jobs():
-    print("\n--- Job List & Financial Summary ---")
-    if not all_jobs:
-        print("No jobs in system.")
-        return
-    sep = "-" * 122
-    print(sep)
-    print(f"{'JOB ID':<10} | {'DESCRIPTION':<30} | {'CLIENT':<20} | "
-          f"{'CONTRACT TOTAL':>15} | {'PAID TOTAL':>15} | {'OUTSTANDING FEE':>15}")
-    print(sep)
-    total_contract = total_paid = total_outstanding = 0.0
-    for j in all_jobs:
-        desc  = (j.description[:28] + "..") if len(j.description) > 28 else j.description
-        cname = (j.client.name[:18]  + "..") if len(j.client.name)  > 18 else j.client.name
-        print(f"{j.job_id:<10} | {desc:<30} | {cname:<20} | "
-              f"${j.contract_total:>13,.2f} | "
-              f"${j.get_paid_total():>13,.2f} | "
-              f"${j.get_outstanding_balance():>13,.2f}")
-        total_contract    += j.contract_total
-        total_paid        += j.get_paid_total()
-        total_outstanding += j.get_outstanding_balance()
-    print(sep)
-    print(f"{'Total:':<66} | ${total_contract:>13,.2f} | ${total_paid:>13,.2f} | ${total_outstanding:>13,.2f}")
-
-# ==========================================
-# INVOICE & PAYMENT
-# ==========================================
-
-def issue_invoice():
-    jid = input("\nEnter Job ID to invoice: ").strip()
-    job = find_job(jid)
-    if not job:
-        print("Error: Job not found.")
-        return
-    try:
-        amount = float(input("Enter Amount: ").strip())
-    except ValueError:
-        print("Error: Invalid amount.")
-        return
-    if job.get_billed_total() + amount > job.contract_total:
-        print("WARNING: Exceeds Contract Total!")
-    date_str = input("Enter Issue Date (YYYY-MM-DD) [Press Enter for Today]: ").strip()
-    if date_str:
+            messagebox.showerror("Error", "Invalid amount.")
+            return
         try:
-            issue_date = date.fromisoformat(date_str)
+            issue_date = date.fromisoformat(date_str) if date_str else date.today()
         except ValueError:
-            print("Invalid date format. Using TODAY.")
-            issue_date = date.today()
-    else:
-        issue_date = date.today()
-    inv = Invoice(generate_invoice_id(), amount, issue_date, None)
-    job.add_invoice(inv)
-    save_data(all_clients, all_jobs)
-    print(f"Success: Invoice issued ID: {inv.invoice_id} on {inv.issue_date}")
-
-def record_payment():
-    inv_id = input("Enter Invoice ID to pay: ").strip()
-    found  = False
-    for j in all_jobs:
-        for inv in j.invoice_list:
-            if inv.invoice_id.upper() == inv_id.upper():
-                print(f"Invoice for Job: {j.job_id} - {j.description} | Client: {j.client.name}")
-                if inv.is_paid:
-                    print("Error: Already paid.")
-                else:
-                    inv.mark_as_paid()
-                    save_data(all_clients, all_jobs)
-                    print("Success: Payment recorded.")
-                found = True
-                break
-        if found:
-            break
-    if not found:
-        print("Error: Invoice ID not found.")
-
-# ==========================================
-# REPORTING
-# ==========================================
-
-def generate_total_summary():
-    try:
-        target_year = int(input("Enter Year (e.g. 2025): ").strip())
-    except ValueError:
-        print("Invalid input.")
-        return
-    month_income = [0.0] * 12
-    total_income = 0.0
-    for job in all_jobs:
-        for inv in job.invoice_list:
-            d = inv.payment_date
-            if d and d.year == target_year:
-                month_income[d.month - 1] += inv.amount
-                total_income              += inv.amount
-    print(f"\n--- Yearly Income Report: {target_year} ---")
-    for m in range(12):
-        print(f"{m + 1:02d}/{target_year}      $ {month_income[m]:>15,.2f}")
-    print("-" * 40)
-    print(f"{'Total :':<13} ${total_income:>16,.2f}")
-
-def generate_client_summary():
-    try:
-        target_year = int(input("Enter Year (e.g. 2025): ").strip())
-    except ValueError:
-        print("Invalid input.")
-        return
-    print(f"\n>>> Breakdown by Client for {target_year}:")
-    grand_total = 0.0
-    for client in all_clients:
-        client_total = sum(
-            inv.amount
-            for job in all_jobs if job.client is client
-            for inv in job.invoice_list
-            if inv.is_paid and inv.payment_date and inv.payment_date.year == target_year
+            messagebox.showerror("Error", "Invalid date format. Use YYYY-MM-DD.")
+            return
+        if job.get_billed_total() + amount > job.contract_total:
+            if not messagebox.askyesno("Warning", "This invoice exceeds the contract total. Continue?"):
+                return #for ans NO
+            
+        inv = Invoice(
+            invoice_id = invoice_id,
+            amount = amount,
+            job_id = jid.upper(),
+            issue_date = issue_date,
+            notes = notes,
         )
-        if client_total > 0:
-            print(f" - {client.name:<20}: ${client_total:>15,.2f}")
-            grand_total += client_total
-    print("   " + "-" * 40)
-    print(f"   TOTAL REVENUE:        ${grand_total:>15,.2f}")
+
+        all_invoices.append(inv)
+
+        #always save and refresh
+        save_data(all_clients, all_jobs, all_invoices)
+        self.refresh()
+
+    def on_edit(self):
+        inv = self._selected_invoice() #return invoice object
+        if not inv:
+            return
+
+        formD = FormDialog(self, "Edit Invoice", [
+            ("Invoice ID (fixed)", inv.invoice_id, True),
+            ("Amount", inv.amount, False),
+            ("Notes", inv.notes, False),
+        ])
+
+        if formD.result:
+            _, amt_str, notes = formD.result
+            if amt_str:
+                try:
+                    inv.amount = float(amt_str)
+                except ValueError:
+                    messagebox.showerror("Error", "Invalid amount.")
+                    return
+            inv.notes = notes
+            
+            #always save and refresh
+            save_data(all_clients, all_jobs, all_invoices)
+            self.refresh()
+
+    def on_pay(self):
+
+        inv = self._selected_invoice() #return invoice object
+
+        if not inv:
+            return
+        if inv.is_paid:
+            messagebox.showerror("Error", "Invoice is already paid.")
+            return
+        formD = FormDialog(self, "Record Payment", [
+            ("Invoice ID (fixed)", inv.invoice_id, True),
+            ("Payment Date (YYYY-MM-DD)", str(date.today()), False),
+        ])
+
+        if not formD.result:
+            return
+        
+        _, date_str = formD.result
+
+        try:
+            pay_date = date.fromisoformat(date_str) if date_str else date.today() #check date format
+        except ValueError:
+            messagebox.showerror("Error", "Invalid date format.")
+            return
+        
+        inv.mark_as_paid(pay_date)
+
+        #always save and refresh
+        save_data(all_clients, all_jobs, all_invoices)
+        self.refresh()
+
+# Reporting
+class Reporting(tk.Frame):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.content_frame = None
+        self._build_toolbar()
+
+    def _build_toolbar(self):
+        '''top toolbar with buttons'''
+        bar = tk.Frame(self)
+        bar.pack(fill="x", padx=8, pady=6)
+        tk.Button(bar, text="By Client", width=14, command=self.by_client).pack(side="left", padx=4)
+        tk.Button(bar, text="By Month", width=14, command=self.by_month).pack(side="left", padx=4)
+
+    def by_client(self):
+        '''tree view to display report'''
+        
+        #reset old content
+        if self.content_frame is not None:
+            self.content_frame.destroy()
+        
+        #build new tree for report
+        self.content_frame = tk.Frame(self)
+        self.content_frame.pack(fill="both", expand=True, padx=8, pady=4)
+
+        cols = ("client_id", "client_name", "c_total_contract", "c_total_billed", "c_total_paid", "c_outstanding")
+        
+        tree = ttk.Treeview(self.content_frame, columns=cols, show="headings")
+
+        #set heading and column
+        for col, heading, width, anchor in [("client_id", "Client ID", 90, "w"), 
+                                            ("client_name", "Client Name", 160, "w"),
+                                            ("c_total_contract", "Total Contract", 120, "e"), 
+                                            ("c_total_billed", "Total Billed", 120, "e"),
+                                            ("c_total_paid", "Total Paid", 120, "e"),
+                                            ("c_outstanding", "Outstanding Balance", 120, "e")]:
+            tree.heading(col, text=heading)
+            tree.column(col,  width=width, anchor=anchor)
+        
+        vsb = ttk.Scrollbar(self.content_frame, orient="vertical", command=tree.yview)
+        tree.configure(yscrollcommand=vsb.set)
+
+        tree.pack(side="left", fill="both", expand=True)
+        vsb.pack(side="right", fill="y")
+        
+        for c in all_clients:
+            client_id = c.client_id
+            client_name = c.name
+            
+            # calculate totals contract total
+            c_total_contract = 0
+            for j in all_jobs:
+                if j.client_id == client_id:
+                    c_total_contract += j.contract_total
+
+            
+            c_total_billed = 0
+            c_total_paid = 0
+
+            for inv in all_invoices:
+                job = Job.find_job(inv.job_id)
+
+                if job and job.client_id == client_id:
+                    # calculate total billed
+                    c_total_billed += inv.amount
+                    
+                    # calculate total paid
+                    if inv.is_paid:
+                        c_total_paid += inv.amount
+
+            # calculate outstanding balance
+            c_outstanding = c_total_contract - c_total_paid
+
+            # input to the tree
+            tree.insert("", "end", iid=client_id, values=(
+                client_id,
+                client_name,
+                f"${c_total_contract:,.2f}",
+                f"${c_total_billed:,.2f}",
+                f"${c_total_paid:,.2f}",
+                f"${c_outstanding:,.2f}"
+            ))
+
+    def by_month(self):
+        '''tree view to display report by month'''
+        #reset old content
+        if self.content_frame is not None:
+            self.content_frame.destroy()
+
+        #build new tree for report
+        self.content_frame = tk.Frame(self)
+
+        cols = ("month", "total_invoices", "total_billed", "total_paid")
+
+        self.content_frame.pack(fill="both", expand=True, padx=8, pady=4)
+        tree = ttk.Treeview(self.content_frame, columns=cols, show="headings")
+
+        #set heading and column
+        for col, heading, width, anchor in [("month", "Month", 120, "w"), 
+                                            ("total_invoices", "Total Invoices", 120, "e"),
+                                            ("total_billed", "Total Billed", 120, "e"), 
+                                            ("total_paid", "Total Paid", 120, "e")]:
+            tree.heading(col, text=heading)
+            tree.column(col,  width=width, anchor=anchor)
+
+        #vertical scrollbar
+        vsb = ttk.Scrollbar(self.content_frame, orient="vertical", command=tree.yview)
+        tree.configure(yscrollcommand=vsb.set)
+
+        tree.pack(side="left", fill="both", expand=True)
+        vsb.pack(side="right", fill="y")
+
+        # aggregate data by month
+        monthly_data = {}
+        for inv in all_invoices:
+            month = inv.issue_date.strftime("%Y-%m") #group by year-month
+            # set for initial value for each month if not exist
+            if month not in monthly_data:
+                monthly_data[month] = {"total_invoices": 0, "total_billed": 0.0, "total_paid": 0.0}
+
+            monthly_data[month]["total_invoices"] += 1
+            monthly_data[month]["total_billed"] += inv.amount
+            if inv.is_paid:
+                monthly_data[month]["total_paid"] += inv.amount
+
+        # input to the tree
+        for month, data in sorted(monthly_data.items()):
+            tree.insert("", "end", iid=month, values=(
+                month,
+                data["total_invoices"],
+                f"${data['total_billed']:,.2f}",
+                f"${data['total_paid']:,.2f}"))
+    
+# About
+class About(tk.Frame):
+    def __init__(self, parent):
+        super().__init__(parent)
+        tk.Label(self, text="Service Record Management System\n" \
+        "Version 1.0\n\nCourse: COMP8090", justify="center").pack(expand=True)
+
+# GUI: Main Window
+class Main_Window(tk.Tk):
+    def __init__(self):
+        super().__init__()
+        self.title("Service Record Management System")
+        self.geometry("1200x500")
+        self.resizable(True, True)
+
+        notebook = ttk.Notebook(self)
+        notebook.pack(fill="both", expand=True, padx=8, pady=8)
+
+        self.client_tab = ClientTab(notebook) #frame for client tab
+        self.job_tab = JobTab(notebook) #frame for job tab
+        self.invoice_tab = InvoiceTab(notebook) #frame for invoice tab
+        self.report_tab = Reporting(notebook) #frame for report tab
+
+        notebook.add(self.client_tab, text="  Clients  ")
+        notebook.add(self.job_tab, text="  Jobs  ")
+        notebook.add(self.invoice_tab, text="  Invoices  ")
+        notebook.add(self.report_tab, text="  Reports  ")
+        notebook.add(About(notebook), text="  About  ")
+
+        # refresh all tabs when switching
+        notebook.bind("<<NotebookTabChanged>>", self.refresh)
+
+    def refresh(self, event=None):
+        self.client_tab.refresh()
+        self.job_tab.refresh()
+        self.invoice_tab.refresh()
+
 
 # ==========================================
 # MAIN
 # ==========================================
 
 def main():
-    global all_clients, all_jobs
+    global all_clients, all_jobs, all_invoices
 
     if not os.path.exists(DATA_FILE):
-        print(f"ERROR: '{DATA_FILE}' not found.")
-        print("Please place data.yaml in the same folder and restart.")
+        messagebox.showerror("Error", f"'{DATA_FILE}' not found.\nPlease place data.yaml in the same folder.")
         return
 
-    print(f"Loading data from {DATA_FILE}...")
-    raw         = load_data()
-    all_clients = [dict_to_client(d) for d in raw.get("clients", [])]
-    all_jobs    = [dict_to_job(d, all_clients) for d in raw.get("jobs", [])]
-    print(f"Loaded {len(all_clients)} clients, {len(all_jobs)} jobs.\n")
+    if load_data():
+        print("Data loaded successfully.")
+    else:
+        messagebox.showerror("Error", "Failed to load data.")
+        return
 
-    running = True
-    while running:
-        print("\n=========================================")
-        print("   SERVICE RECORD MANAGEMENT SYSTEM")
-        print("=========================================")
-        print("   [ CLIENTS ]")
-        print("   1. Create New Client")
-        print("   2. Edit Client Details")
-        print("   3. List All Clients")
-        print("-----------------------------------------")
-        print("   [ JOBS & INVOICING ]")
-        print("   4. Create New Job")
-        print("   5. Edit Job Details")
-        print("   6. Show Specific Job Details")
-        print("   7. List All Jobs (Summary)")
-        print("   8. Issue Invoice")
-        print("   9. Record Payment to Invoice")
-        print("-----------------------------------------")
-        print("   [ REPORTS ]")
-        print("   10. Yearly Income (Total)")
-        print("   11. Yearly Income (By Client)")
-        print("-----------------------------------------")
-        print("   0. EXIT")
-        print("=========================================")
-        choice = input(">> Select Option: ").strip()
-
-        actions = {
-            "1":  create_new_client,
-            "2":  edit_client_detail,
-            "3":  list_all_clients,
-            "4":  create_new_job,
-            "5":  edit_job_detail,
-            "6":  list_specific_job,
-            "7":  list_all_jobs,
-            "8":  issue_invoice,
-            "9":  record_payment,
-            "10": generate_total_summary,
-            "11": generate_client_summary,
-        }
-
-        if choice == "0":
-            running = False
-            print("System Exiting.")
-        elif choice in actions:
-            actions[choice]()
-            press_enter()
-        else:
-            print("Invalid choice. Please try again.")
+    app = Main_Window()
+    app.mainloop()
 
 if __name__ == "__main__":
     main()

@@ -2,7 +2,11 @@
 
 # Content
 
+**5-minute introduction video** [https://youtu.be/WElNAKMI-bM](https://youtu.be/WElNAKMI-bM)
+
+
 ## Section 1 - Data Structure - Trie
+
 
 ### Introduction
 A **Trie** is a tree-based data structure built specifically for string storage and retrieval. It gets its name from the word "retrieval", first introduced by Edward Fredkin in 1960. Rather than storing complete strings at each node, a Trie breaks every word down character by character, where each node represents a single letter and the path from the root to any node spells out a prefix or a complete word.
