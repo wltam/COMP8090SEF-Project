@@ -22,14 +22,14 @@ all_invoices : list["Invoice"] = []
 
 # Class: Client
 class Client:
-    def __init__(self, client_id, name, phone, address):
+    def __init__(self, client_id : str, name : str, phone : str, address : str):
         self.client_id: str = client_id #client id [Cxxx where xxx is 5-digit number]
         self.name : str = name
         self.phone : str = phone
         self.address : str = address
 
     @staticmethod
-    def find_client(cid):
+    def find_client(cid: str) -> "Client | None":
         '''Find client object by client id'''
         return next((c for c in all_clients if c.client_id.upper() == cid.upper()), None)
 
@@ -44,7 +44,7 @@ class Client:
 # Class: Invoice
 class Invoice:
     
-    def __init__(self, invoice_id, amount, job_id, issue_date=None, payment_date=None, notes=""):
+    def __init__(self, invoice_id : str, amount : float, job_id : str, issue_date=None, payment_date=None, notes=""):
         self.invoice_id : str = invoice_id #invoice id [INV-yyyy-xxxxx where yyyy is year and xxxxx is 5-digit number]
         self.amount : float = amount
         self.job_id : str = job_id
@@ -54,11 +54,12 @@ class Invoice:
         self.notes : str = notes
 
     @staticmethod
-    def find_invoice(inv_id) -> "Invoice":
+    def find_invoice(inv_id: str) -> "Invoice | None":  
+        '''return invoice object by invoice id'''
         return next((i for i in all_invoices if i.invoice_id.upper() == inv_id.upper()), None)
 
     @staticmethod
-    def generate_invoice_id() -> str:
+    def generate_invoice_id() -> str: 
         '''generate new invoice id'''
         current_year = date.today().year
         num = 0
@@ -68,10 +69,12 @@ class Invoice:
     
     @property
     def job(self) -> "Job | None":
+        '''return the job object associated with this invoice'''
         return Job.find_job(self.job_id)
 
     @property
     def client(self) -> "Client | None":
+        '''return the client object associated with this invoice'''
         job = Job.find_job(self.job_id)
         return Client.find_client(job.client_id) if job else None
 
@@ -89,14 +92,14 @@ class Invoice:
 
 # Class: Job
 class Job:
-    def __init__(self, job_id, description, contract_total, client_id):
+    def __init__(self, job_id : str, description : str, contract_total : float, client_id : str):
         self.job_id : str = job_id #job id [Jxxx where xxx is 3-digit number]
         self.description : str = description
         self.contract_total : float = contract_total
         self.client_id : str = client_id
 
     @staticmethod
-    def find_job(jid) -> "Job":
+    def find_job(jid: str) -> "Job | None":
         '''find job object by job id'''
         return next((j for j in all_jobs if j.job_id.upper() == jid.upper()), None)
 
@@ -110,6 +113,7 @@ class Job:
     
     @property
     def client(self) -> "Client | None":
+        '''return the client object associated with this job'''
         return Client.find_client(self.client_id)
 
     def get_invoices(self) -> list[Invoice]:

@@ -74,7 +74,7 @@ class FormDialog(tk.Toplevel):
     """
     Genearic form dialog
     """
-    def __init__(self, parent, title, fields): #Enter for fields with a list of (label, default_value, disabled:bool)
+    def __init__(self, parent: tk.Widget, title: str, fields: list): #Enter for fields with a list of (label, default_value, disabled:bool)
         super().__init__(parent)
         self.title(title)
         self.resizable(False, False)
@@ -114,7 +114,7 @@ class FormDialog(tk.Toplevel):
 
 # Client Tab
 class ClientTab(tk.Frame):
-    def __init__(self, parent):
+    def __init__(self, parent: tk.Widget):
         super().__init__(parent)
         self._build_toolbar()
         self._build_tree()
@@ -129,7 +129,7 @@ class ClientTab(tk.Frame):
 
     def _build_tree(self):
         '''the treeview to display client list'''
-        cols = ("client_id", "name", "phone", "address")
+        cols : tuple[str, ...] = ("client_id", "name", "phone", "address")
         frame = tk.Frame(self)
         frame.pack(fill="both", expand=True, padx=8, pady=4)
 
@@ -202,7 +202,7 @@ class ClientTab(tk.Frame):
 
 # Job Tab
 class JobTab(tk.Frame):
-    def __init__(self, parent):
+    def __init__(self, parent : tk.Widget):
         super().__init__(parent)
         self._build_toolbar()
         self._build_tree()
@@ -331,7 +331,7 @@ class JobTab(tk.Frame):
 
 # GUI: Invoice Tab
 class InvoiceTab(tk.Frame):
-    def __init__(self, parent):
+    def __init__(self, parent: tk.Widget):
         super().__init__(parent)
         self._build_toolbar()
         self._build_tree()
@@ -415,7 +415,7 @@ class InvoiceTab(tk.Frame):
         
         _, jid, amt_str, date_str, notes = formD.result
 
-        job = Job.find_job(jid)
+        job : Job | None = Job.find_job(jid)  #check if job exist for the invoice
         if not job:
             messagebox.showerror("Error", f"Job '{jid}' not found.")
             return
@@ -474,7 +474,7 @@ class InvoiceTab(tk.Frame):
 
     def on_pay(self):
 
-        inv = self._selected_invoice() #return invoice object
+        inv : Invoice | None = self._selected_invoice() #return invoice object
 
         if not inv:
             return
